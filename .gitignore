@@ -1,0 +1,11 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+data.json
+wwwroot/music/
+wwwroot/uploads/
+*.zip
+.DS_Store
+Thumbs.db

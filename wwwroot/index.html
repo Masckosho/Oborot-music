@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>OBOROT — совместные плейлисты</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script>
+  (function () {
+    var saved = localStorage.getItem("oborot-theme");
+    var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-decor" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="grain"></div>
+  </div>
+  <div class="notes" aria-hidden="true">
+    <span class="note n1">♪</span>
+    <span class="note n2">♫</span>
+    <span class="note n3">♪</span>
+    <span class="note n4">♬</span>
+    <span class="note n5">♩</span>
+    <span class="note n6">♫</span>
+    <span class="note n7">♪</span>
+    <span class="note n8">♬</span>
+  </div>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark"></span> OBOROT</div>
+    <div class="topbar-actions">
+      <button id="btn-theme" class="btn btn-ghost" title="Переключить тему">🌙 Тёмная</button>
+      <button id="btn-help" class="btn btn-ghost" title="Справка и сведения">？ Справка</button>
+      <button id="btn-new-room" class="btn btn-accent">＋ Создать комнату</button>
+    </div>
+  </header>
+
+  <main id="view-rooms" class="view">
+    <div class="eyebrow">Главная</div>
+    <h1>Комнаты</h1>
+    <p class="sub">Выберите комнату или создайте новую — добавляйте треки и голосуйте за порядок.</p>
+    <div id="rooms-list" class="rooms-grid"></div>
+  </main>
+
+  <main id="view-room" class="view" hidden>
+    <button id="btn-back" class="btn btn-ghost">← Все комнаты</button>
+    <div class="eyebrow">Комната</div>
+    <div class="room-name-wrap">
+      <h1 id="room-name"></h1>
+      <button id="btn-rename" class="btn-rename" title="Переименовать">✎</button>
+      <button id="btn-delete-room" class="btn-delete-room" title="Удалить комнату">🗑</button>
+    </div>
+    <div id="room-rename-form" class="room-rename-form" hidden>
+      <input id="input-rename" class="room-rename-input" type="text" placeholder="Название комнаты" />
+      <button id="btn-rename-save" class="btn btn-accent">Сохранить</button>
+      <button id="btn-rename-cancel" class="btn btn-ghost">Отмена</button>
+    </div>
+
+    <div id="panel-upload" class="add-panel">
+      <label id="dropzone" class="dropzone" for="file-input">
+        <div class="dropzone-icon">♫</div>
+        <div class="dropzone-text">Перетащите аудиофайл сюда или нажмите для выбора</div>
+        <div class="dropzone-hint">MP3, WAV, OGG, M4A, FLAC · до 25 МБ · название и артист определятся автоматически</div>
+        <input id="file-input" type="file" accept=".mp3,.wav,.ogg,.m4a,.flac,audio/*" hidden />
+      </label>
+      <div id="upload-status" class="upload-status" hidden></div>
+    </div>
+
+    <div class="eyebrow tracks-eyebrow">Очередь · сортировка по голосам</div>
+    <div id="tracks-list" class="tracks-list"></div>
+  </main>
+
+  <div id="player-bar" class="player-bar" hidden>
+    <button id="player-toggle" class="player-toggle" title="Пауза/Play">▶</button>
+    <button id="player-skip" class="player-skip" title="Следующий трек">⏭</button>
+    <div class="player-info">
+      <strong id="player-title"></strong>
+      <span id="player-artist"></span>
+    </div>
+    <div class="player-progress">
+      <span id="player-time-current" class="player-time">0:00</span>
+      <input id="player-seek" class="player-seek" type="range" min="0" max="100" value="0" step="0.1" />
+      <span id="player-time-total" class="player-time">0:00</span>
+    </div>
+
+    <!-- Кнопка громкости + всплывающий попап с регулятором -->
+    <div class="vol-btn-wrap">
+      <button id="vol-btn" class="vol-btn" title="Громкость">
+        <svg id="vol-icon" viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7H6L10 4V16L6 13H3V7Z"/>
+          <path id="vol-wave-1" d="M13 7.5C13.8 8.3 14.3 9.1 14.3 10S13.8 11.7 13 12.5"/>
+          <path id="vol-wave-2" d="M15.5 5.5C17 6.9 17.8 8.4 17.8 10S17 13.1 15.5 14.5"/>
+        </svg>
+        <span id="vol-pct" class="vol-pct">80</span>
+      </button>
+
+      <!-- Попап с крутилкой -->
+      <div id="vol-popup" class="vol-popup" hidden>
+        <div class="vol-popup-label">Громкость</div>
+        <svg id="vol-knob" viewBox="0 0 140 140" width="140" height="140" style="display:block;margin:0 auto;">
+          <!-- Делители (риски по кругу) -->
+          <g id="vol-ticks"></g>
+          <!-- Серая дорожка 270° -->
+          <circle cx="70" cy="70" r="52"
+            fill="none" stroke="rgba(250,246,236,0.12)" stroke-width="8"
+            stroke-linecap="round"
+            stroke-dasharray="245.04 81.68"
+            transform="rotate(-225 70 70)" />
+          <!-- Заполненная дуга -->
+          <circle id="vol-arc" cx="70" cy="70" r="52"
+            fill="none" stroke="#d94e2f" stroke-width="8"
+            stroke-linecap="round"
+            stroke-dasharray="0 326.73"
+            transform="rotate(-225 70 70)" />
+          <!-- Корпус ручки -->
+          <circle cx="70" cy="70" r="38"
+            fill="#0e0b08" stroke="rgba(250,246,236,0.18)" stroke-width="1.5"/>
+          <!-- Маркер-точка -->
+          <circle id="vol-marker" cx="70" cy="34" r="5" fill="rgba(250,246,236,0.9)"/>
+          <!-- Процент в центре -->
+          <text id="vol-num" x="70" y="66"
+            text-anchor="middle" dominant-baseline="middle"
+            font-family="monospace" font-size="22" font-weight="700"
+            fill="rgba(250,246,236,0.95)">80</text>
+          <text x="70" y="86"
+            text-anchor="middle" dominant-baseline="middle"
+            font-family="monospace" font-size="10"
+            fill="rgba(250,246,236,0.4)">%</text>
+        </svg>
+        <div class="vol-popup-hint">← перетащите · колесо мыши →</div>
+      </div>
+    </div>
+
+    <audio id="audio-el"></audio>
+  </div>
+
+  <div id="modal-new-room" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h2>Новая комната</h2>
+      <input id="input-room-name" placeholder="Например: Вечер пятницы" />
+      <div class="modal-actions">
+        <button id="btn-create-room" class="btn btn-accent">Создать</button>
+        <button id="btn-cancel-room" class="btn btn-ghost">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-help" class="modal-backdrop" hidden>
+    <div class="modal modal-help">
+      <h2>Справка</h2>
+
+      <div class="help-section">
+        <h3>Как пользоваться</h3>
+        <ul>
+          <li>Создайте комнату кнопкой «＋ Создать комнату»</li>
+          <li>Откройте комнату и загрузите аудиофайл — название и артист определятся автоматически из тегов</li>
+          <li>Голосуйте за треки кнопками ➕ / ➖ — очередь сортируется по голосам</li>
+          <li>Нажмите на обложку трека, чтобы запустить его в плеере</li>
+          <li>Внизу — мини-плеер: пауза/воспроизведение, скип, перемотка</li>
+        </ul>
+      </div>
+
+      <div class="help-section about-section">
+        <h3>О проекте</h3>
+        <p>
+          OBOROT — совместные плейлисты с голосованием за порядок треков.<br />
+          Учебный проект · РТУ МИРЭА · 2026
+        </p>
+        <p class="author">Автор: Аристархов Владимир</p>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-close-help" class="btn btn-accent">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
